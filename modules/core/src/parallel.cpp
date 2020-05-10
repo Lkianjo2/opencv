@@ -946,7 +946,7 @@ int getNumberOfCPUs_()
 
 #endif
 
-#if !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(_WIN32) && !defined(__APPLE__) && !defined(__QNX__)
 
     static unsigned cpu_count_sysconf = (unsigned)sysconf( _SC_NPROCESSORS_ONLN );
     ncpus = minNonZero(ncpus, cpu_count_sysconf);

@@ -166,7 +166,7 @@ if(CV_GCC OR CV_CLANG)
   endif()
 
   # We need pthread's
-  if(UNIX AND NOT ANDROID AND NOT (APPLE AND CV_CLANG)) # TODO
+  if(UNIX AND NOT ANDROID AND NOT (APPLE AND CV_CLANG) AND NOT QNX) # TODO
     add_extra_compiler_option(-pthread)
   endif()
 

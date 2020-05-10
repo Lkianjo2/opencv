@@ -114,6 +114,10 @@ void* allocSingletonNewBuffer(size_t size) { return malloc(size); }
 #include <cstdlib>        // std::abort
 #endif
 
+#if defined __QNX__
+#  include <unistd.h>
+#endif
+
 #if defined __ANDROID__ || defined __linux__ || defined __FreeBSD__ || defined __OpenBSD__ || defined __HAIKU__ || defined __Fuchsia__
 #  include <unistd.h>
 #  include <fcntl.h>
