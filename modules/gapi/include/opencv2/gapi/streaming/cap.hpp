@@ -103,12 +103,6 @@ protected:
     }
 };
 
-// NB: Overload for using from python
-GAPI_EXPORTS_W cv::Ptr<IStreamSource> inline make_capture_src(const std::string& path)
-{
-    return make_src<GCaptureSource>(path);
-}
-
 } // namespace wip
 } // namespace gapi
 } // namespace cv

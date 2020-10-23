@@ -492,14 +492,12 @@ public:
             }
         }
     }
-    std::pair<MediaID, MediaType> findBestVideoFormat(const MediaType& newType)
+    std::pair<MediaID, MediaType> findBest(const MediaType& newType)
     {
         std::pair<MediaID, MediaType> best;
         std::map<MediaID, MediaType>::const_iterator i = formats.begin();
         for (; i != formats.end(); ++i)
         {
-            if (i->second.majorType != MFMediaType_Video)
-                continue;
             if (newType.isEmpty()) // file input - choose first returned media type
             {
                 best = *i;
@@ -777,12 +775,7 @@ bool CvCapture_MSMF::configureOutput(MediaType newType, cv::uint32_t outFormat)
 {
     FormatStorage formats;
     formats.read(videoFileSource.Get());
-    std::pair<FormatStorage::MediaID, MediaType> bestMatch = formats.findBestVideoFormat(newType);
-    if (bestMatch.second.isEmpty())
-    {
-        CV_LOG_DEBUG(NULL, "Can not find video stream with requested parameters");
-        return false;
-    }
+    std::pair<FormatStorage::MediaID, MediaType> bestMatch = formats.findBest(newType);
     dwStreamIndex = bestMatch.first.stream;
     nativeFormat = bestMatch.second;
     MediaType newFormat = nativeFormat;

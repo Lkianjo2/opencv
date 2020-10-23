@@ -27,7 +27,10 @@ struct quirc *quirc_new(void)
 {
 	struct quirc *q = malloc(sizeof(*q));
 
-    memset(q, 0, sizeof(*q));
+	if (!q)
+		return NULL;
+
+	memset(q, 0, sizeof(*q));
 	return q;
 }
 
@@ -36,8 +39,9 @@ void quirc_destroy(struct quirc *q)
 	free(q->image);
 	/* q->pixels may alias q->image when their type representation is of the
 	   same size, so we need to be careful here to avoid a double free */
-	if (!QUIRC_PIXEL_ALIAS_IMAGE)
+	if (sizeof(*q->image) != sizeof(*q->pixels))
 		free(q->pixels);
+	free(q->row_average);
 	free(q);
 }
 
@@ -45,6 +49,7 @@ int quirc_resize(struct quirc *q, int w, int h)
 {
 	uint8_t		*image  = NULL;
 	quirc_pixel_t	*pixels = NULL;
+	int		*row_average = NULL;
 
 	/*
 	 * XXX: w and h should be size_t (or at least unsigned) as negatives
@@ -77,27 +82,35 @@ int quirc_resize(struct quirc *q, int w, int h)
 	(void)memcpy(image, q->image, min);
 
 	/* alloc a new buffer for q->pixels if needed */
-	if (!QUIRC_PIXEL_ALIAS_IMAGE) {
+	if (sizeof(*q->image) != sizeof(*q->pixels)) {
 		pixels = calloc(newdim, sizeof(quirc_pixel_t));
 		if (!pixels)
 			goto fail;
 	}
+
+	/* alloc a new buffer for q->row_average */
+	row_average = calloc(w, sizeof(int));
+	if (!row_average)
+		goto fail;
 
 	/* alloc succeeded, update `q` with the new size and buffers */
 	q->w = w;
 	q->h = h;
 	free(q->image);
 	q->image = image;
-	if (!QUIRC_PIXEL_ALIAS_IMAGE) {
+	if (sizeof(*q->image) != sizeof(*q->pixels)) {
 		free(q->pixels);
 		q->pixels = pixels;
 	}
+	free(q->row_average);
+	q->row_average = row_average;
 
 	return 0;
 	/* NOTREACHED */
 fail:
 	free(image);
 	free(pixels);
+	free(row_average);
 
 	return -1;
 }
@@ -120,10 +133,6 @@ static const char *const error_table[] = {
 
 const char *quirc_strerror(quirc_decode_error_t err)
 {
-    if ((int) err >= 0) {
-        if ((unsigned long) err < (unsigned long) (sizeof(error_table) / sizeof(error_table[0])))
-            return error_table[err];
-    }
-
-    return "Unknown error";
+	if ((int)err < 8) { return error_table[err]; }
+	else { return "Unknown error"; }
 }

@@ -1,9 +1,6 @@
 Feature Description {#tutorial_feature_description}
 ===================
 
-@prev_tutorial{tutorial_feature_detection}
-@next_tutorial{tutorial_feature_flann_matcher}
-
 Goal
 ----
 

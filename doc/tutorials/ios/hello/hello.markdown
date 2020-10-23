@@ -1,8 +1,6 @@
 OpenCV iOS Hello {#tutorial_hello}
 ================
 
-@next_tutorial{tutorial_image_manipulation}
-
 Goal
 ----
 

@@ -787,7 +787,6 @@ class JavaWrapperGenerator(object):
                             inCode = True
                         if "</code>" in line:
                             inCode = False
-                        line = line.replace('@result ', '@return ')  # @result is valid in Doxygen, but invalid in Javadoc
                         if "@return " in line:
                             returnTag = True
 
@@ -896,10 +895,7 @@ class JavaWrapperGenerator(object):
                 ret = ""
                 default = ""
             elif not fi.ctype: # c-tor
-                if self.isSmartClass(ci):
-                    ret = "return (jlong)(new Ptr<%(ctype)s>(_retval_));" % { 'ctype': fi.fullClass(isCPP=True) }
-                else:
-                    ret = "return (jlong) _retval_;"
+                ret = "return (jlong) _retval_;"
             elif "v_type" in type_dict[fi.ctype]: # c-tor
                 if type_dict[fi.ctype]["v_type"] in ("Mat", "vector_Mat"):
                     ret = "return (jlong) _retval_;"
@@ -944,12 +940,8 @@ class JavaWrapperGenerator(object):
                         c_epilogue.append("return " + fi.ctype + "_to_List(env, _ret_val_vector_);")
             if fi.classname:
                 if not fi.ctype: # c-tor
-                    if self.isSmartClass(ci):
-                        retval = self.smartWrap(ci, fi.fullClass(isCPP=True)) + " _retval_ = "
-                        cvname = "makePtr<" + fi.fullClass(isCPP=True) +">"
-                    else:
-                        retval = fi.fullClass(isCPP=True) + "* _retval_ = "
-                        cvname = "new " + fi.fullClass(isCPP=True)
+                    retval = fi.fullClass(isCPP=True) + "* _retval_ = "
+                    cvname = "new " + fi.fullClass(isCPP=True)
                 elif fi.static:
                     cvname = fi.fullName(isCPP=True)
                 else:

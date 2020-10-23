@@ -1,9 +1,6 @@
 OpenCV iOS - Image Processing {#tutorial_image_manipulation}
 =============================
 
-@prev_tutorial{tutorial_hello}
-@next_tutorial{tutorial_video_processing}
-
 Goal
 ----
 
