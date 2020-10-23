@@ -48,9 +48,9 @@ namespace{
     }
 }
 
+#if !defined(GAPI_STANDALONE)
 cv::GMatDesc cv::descr_of(const cv::Mat &mat)
 {
-#if !defined(GAPI_STANDALONE)
     const auto mat_dims = mat.size.dims();
 
     if (mat_dims == 2)
@@ -62,12 +62,8 @@ cv::GMatDesc cv::descr_of(const cv::Mat &mat)
         dims[i] = mat.size[i];
     }
     return GMatDesc{mat.depth(), std::move(dims)};
-#else
-    return (mat.dims.empty())
-        ? GMatDesc{mat.depth(), mat.channels(), {mat.cols, mat.rows}}
-        : GMatDesc{mat.depth(), mat.dims};
-#endif
 }
+#endif
 
 cv::GMatDesc cv::gapi::own::descr_of(const Mat &mat)
 {
@@ -97,6 +93,11 @@ cv::GMetaArgs cv::descrs_of(const std::vector<cv::Mat> &vec)
 cv::GMetaArgs cv::gapi::own::descrs_of(const std::vector<Mat> &vec)
 {
     return vec_descr_of(vec);
+}
+
+cv::GMatDesc cv::descr_of(const cv::RMat &mat)
+{
+    return mat.desc();
 }
 
 namespace cv {
@@ -139,6 +140,11 @@ template<typename M> inline bool canDescribeHelper(const GMatDesc& desc, const M
 bool GMatDesc::canDescribe(const cv::Mat& mat) const
 {
     return canDescribeHelper(*this, mat);
+}
+
+bool GMatDesc::canDescribe(const cv::RMat& mat) const
+{
+    return *this == mat.desc();
 }
 
 }// namespace cv
