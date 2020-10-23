@@ -46,14 +46,6 @@ static int toNCHW(int idx)
     else return (4 + idx) % 3 + 1;
 }
 
-static int toNCDHW(int idx)
-{
-    CV_Assert(-5 <= idx && idx < 5);
-    if (idx == 0) return 0;
-    else if (idx > 0) return idx % 4 + 1;
-    else return (5 + idx) % 4 + 1;
-}
-
 // This values are used to indicate layer output's data layout where it's possible.
 enum DataLayout
 {
@@ -1331,8 +1323,6 @@ void TFImporter::populateNet(Net dstNet)
 
             if (getDataLayout(name, data_layouts) == DATA_LAYOUT_NHWC)
                 axis = toNCHW(axis);
-            else if (getDataLayout(name, data_layouts) == DATA_LAYOUT_NDHWC)
-                axis = toNCDHW(axis);
             layerParams.set("axis", axis);
 
             // input(0) or input(n-1) is concat_dim
@@ -1542,32 +1532,22 @@ void TFImporter::populateNet(Net dstNet)
 
             connect(layer_id, dstNet, parsePin(layer.input(0)), id, 0);
         }
-        else if (type == "Mul" || type == "RealDiv")
+        else if (type == "Mul")
         {
-            int constId = -1;
-            for(int ii = 0; ii < layer.input_size(); ++ii)
+            bool haveConst = false;
+            for(int ii = 0; !haveConst && ii < layer.input_size(); ++ii)
             {
                 Pin input = parsePin(layer.input(ii));
-                if (value_id.find(input.name) != value_id.end())
-                {
-                    constId = ii;
-                    break;
-                }
+                haveConst = value_id.find(input.name) != value_id.end();
             }
-            CV_Assert((constId != -1) || (layer.input_size() == 2));
+            CV_Assert(!haveConst || layer.input_size() == 2);
 
-            if (constId != -1)
+            if (haveConst)
             {
                 // Multiplication by constant.
                 CV_Assert(layer.input_size() == 2);
                 Mat scaleMat = getTensorContent(getConstBlob(layer, value_id));
                 CV_Assert(scaleMat.type() == CV_32FC1);
-                if (type == "RealDiv")
-                {
-                    if (constId == 0)
-                        CV_Error(Error::StsNotImplemented, "Division of constant over variable");
-                    scaleMat = 1.0f / scaleMat;
-                }
 
                 int id;
                 if (scaleMat.total() == 1)  // is a scalar.
@@ -1669,15 +1649,11 @@ void TFImporter::populateNet(Net dstNet)
                 int id;
                 if (equalInpShapes || netInputShapes.empty())
                 {
-                    layerParams.set("operation", type == "RealDiv" ? "div" : "prod");
+                    layerParams.set("operation", "prod");
                     id = dstNet.addLayer(name, "Eltwise", layerParams);
                 }
                 else
-                {
-                    if (type == "RealDiv")
-                        CV_Error(Error::StsNotImplemented, "Division of non equal tensors");
                     id = dstNet.addLayer(name, "Scale", layerParams);
-                }
 
                 layer_id[name] = id;
 
@@ -1946,10 +1922,10 @@ void TFImporter::populateNet(Net dstNet)
             {
                 Mat factorHeight = getTensorContent(getConstBlob(layer, value_id, 1));
                 Mat factorWidth = getTensorContent(getConstBlob(layer, value_id, 2));
-                factorHeight.convertTo(factorHeight, CV_32F);
-                factorWidth.convertTo(factorWidth, CV_32F);
-                layerParams.set("zoom_factor_x", factorWidth.at<float>(0));
-                layerParams.set("zoom_factor_y", factorHeight.at<float>(0));
+                CV_CheckTypeEQ(factorHeight.type(), CV_32SC1, ""); CV_CheckEQ(factorHeight.total(), (size_t)1, "");
+                CV_CheckTypeEQ(factorWidth.type(), CV_32SC1, ""); CV_CheckEQ(factorWidth.total(), (size_t)1, "");
+                layerParams.set("zoom_factor_x", factorWidth.at<int>(0));
+                layerParams.set("zoom_factor_y", factorHeight.at<int>(0));
             }
             else
                 CV_Assert(layer.input_size() == 2 || layer.input_size() == 3);
@@ -2067,7 +2043,7 @@ void TFImporter::populateNet(Net dstNet)
             connect(layer_id, dstNet, parsePin(layer.input(0)), id, 0);
             connect(layer_id, dstNet, parsePin(layer.input(1)), id, 1);
         }
-        else if (type == "Mean" || type == "Sum")
+        else if (type == "Mean")
         {
             // Computes the mean of elements across dimensions of a tensor.
             // If keepdims is false (default) reduces input_tensor along the dimensions given in axis,
@@ -2116,7 +2092,7 @@ void TFImporter::populateNet(Net dstNet)
                 LayerParams avgLp;
                 std::string avgName = name + "/avg";
                 CV_Assert(layer_id.find(avgName) == layer_id.end());
-                avgLp.set("pool", type == "Mean" ? "ave" : "sum");
+                avgLp.set("pool", "ave");
                 // pooling kernel H x 1
                 avgLp.set("global_pooling_h", true);
                 avgLp.set("kernel_w", 1);
@@ -2153,44 +2129,11 @@ void TFImporter::populateNet(Net dstNet)
                 layer_id[name] = id;
                 connect(layer_id, dstNet, Pin(avgName), id, 0);
                 connect(layer_id, dstNet, Pin(layerShapeName), id, 1);
-            } else if (indices.total() == 1) {
-                int axis = toNCHW(indices.at<int>(0));
-                if (axis == 2 || axis == 3)
-                {
-                    layerParams.set("pool", type == "Mean" ? "ave" : "sum");
-                    layerParams.set(axis == 2 ? "kernel_w" : "kernel_h", 1);
-                    layerParams.set(axis == 2 ? "global_pooling_h" : "global_pooling_w", true);
-                    int id = dstNet.addLayer(name, "Pooling", layerParams);
-                    layer_id[name] = id;
-                    connect(layer_id, dstNet, parsePin(layer.input(0)), id, 0);
-
-                    if (!keepDims)
-                    {
-                        // To keep correct order after squeeze dims we first need to change layout from NCHW to NHWC
-                        LayerParams permLP;
-                        int order[] = {0, 2, 3, 1};  // From OpenCV's NCHW to NHWC.
-                        permLP.set("order", DictValue::arrayInt<int*>(order, 4));
-                        std::string permName = name + "/nchw";
-                        CV_Assert(layer_id.find(permName) == layer_id.end());
-                        int permId = dstNet.addLayer(permName, "Permute", permLP);
-                        layer_id[permName] = permId;
-                        connect(layer_id, dstNet, Pin(name), permId, 0);
-
-                        LayerParams squeezeLp;
-                        std::string squeezeName = name + "/squeeze";
-                        CV_Assert(layer_id.find(squeezeName) == layer_id.end());
-                        squeezeLp.set("axis", indices.at<int>(0));
-                        squeezeLp.set("end_axis", indices.at<int>(0) + 1);
-                        int squeezeId = dstNet.addLayer(squeezeName, "Flatten", squeezeLp);
-                        layer_id[squeezeName] = squeezeId;
-                        connect(layer_id, dstNet, Pin(permName), squeezeId, 0);
-                    }
-                }
             } else {
                 if (indices.total() != 2 || indices.at<int>(0) != 1 || indices.at<int>(1) != 2)
-                    CV_Error(Error::StsNotImplemented, "Unsupported mode of reduce_mean or reduce_sum operation.");
+                    CV_Error(Error::StsNotImplemented, "Unsupported mode of reduce_mean operation.");
 
-                layerParams.set("pool", type == "Mean" ? "ave" : "sum");
+                layerParams.set("pool", "ave");
                 layerParams.set("global_pooling", true);
                 int id = dstNet.addLayer(name, "Pooling", layerParams);
                 layer_id[name] = id;

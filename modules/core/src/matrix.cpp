@@ -237,19 +237,12 @@ void setSize( Mat& m, int _dims, const int* _sz, const size_t* _steps, bool auto
 
         if( _steps )
         {
-            if (i < _dims-1)
+            if (_steps[i] % esz1 != 0)
             {
-                if (_steps[i] % esz1 != 0)
-                {
-                    CV_Error_(Error::BadStep, ("Step %zu for dimension %d must be a multiple of esz1 %zu", _steps[i], i, esz1));
-                }
+                CV_Error(Error::BadStep, "Step must be a multiple of esz1");
+            }
 
-                m.step.p[i] = _steps[i];
-            }
-            else
-            {
-                m.step.p[i] = esz;
-            }
+            m.step.p[i] = i < _dims-1 ? _steps[i] : esz;
         }
         else if( autoSteps )
         {

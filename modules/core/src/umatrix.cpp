@@ -80,7 +80,6 @@ UMatData::~UMatData()
     CV_Assert(mapcount == 0);
     data = origdata = 0;
     size = 0;
-    bool isAsyncCleanup = !!(flags & UMatData::ASYNC_CLEANUP);
     flags = static_cast<UMatData::MemoryFlag>(0);
     handle = 0;
     userdata = 0;
@@ -107,7 +106,7 @@ UMatData::~UMatData()
             showWarn = true;
         if (zero_Ref && zero_URef) // oops, we need to free resources
         {
-            showWarn = !isAsyncCleanup;
+            showWarn = true;
             // simulate UMat::deallocate
             u->currAllocator->deallocate(u);
         }

@@ -1248,7 +1248,6 @@ void _OutputArray::create(int d, const int* sizes, int mtype, int i,
     {
         CV_Assert( i < 0 );
         Mat& m = *(Mat*)obj;
-        CV_Assert(!(m.empty() && fixedType() && fixedSize()) && "Can't reallocate empty Mat with locked layout (probably due to misused 'const' modifier)");
         if (allowTransposed && !m.empty() &&
             d == 2 && m.dims == 2 &&
             m.type() == mtype && m.rows == sizes[1] && m.cols == sizes[0] &&
@@ -1262,13 +1261,13 @@ void _OutputArray::create(int d, const int* sizes, int mtype, int i,
             if(CV_MAT_CN(mtype) == m.channels() && ((1 << CV_MAT_TYPE(flags)) & fixedDepthMask) != 0 )
                 mtype = m.type();
             else
-                CV_CheckTypeEQ(m.type(), CV_MAT_TYPE(mtype), "Can't reallocate Mat with locked type (probably due to misused 'const' modifier)");
+                CV_CheckTypeEQ(m.type(), CV_MAT_TYPE(mtype), "");
         }
         if(fixedSize())
         {
-            CV_CheckEQ(m.dims, d, "Can't reallocate Mat with locked size (probably due to misused 'const' modifier)");
+            CV_CheckEQ(m.dims, d, "");
             for(int j = 0; j < d; ++j)
-                CV_CheckEQ(m.size[j], sizes[j], "Can't reallocate Mat with locked size (probably due to misused 'const' modifier)");
+                CV_CheckEQ(m.size[j], sizes[j], "");
         }
         m.create(d, sizes, mtype);
         return;
@@ -1278,7 +1277,6 @@ void _OutputArray::create(int d, const int* sizes, int mtype, int i,
     {
         CV_Assert( i < 0 );
         UMat& m = *(UMat*)obj;
-        CV_Assert(!(m.empty() && fixedType() && fixedSize()) && "Can't reallocate empty UMat with locked layout (probably due to misused 'const' modifier)");
         if (allowTransposed && !m.empty() &&
             d == 2 && m.dims == 2 &&
             m.type() == mtype && m.rows == sizes[1] && m.cols == sizes[0] &&
@@ -1292,13 +1290,13 @@ void _OutputArray::create(int d, const int* sizes, int mtype, int i,
             if(CV_MAT_CN(mtype) == m.channels() && ((1 << CV_MAT_TYPE(flags)) & fixedDepthMask) != 0 )
                 mtype = m.type();
             else
-                CV_CheckTypeEQ(m.type(), CV_MAT_TYPE(mtype), "Can't reallocate UMat with locked type (probably due to misused 'const' modifier)");
+                CV_CheckTypeEQ(m.type(), CV_MAT_TYPE(mtype), "");
         }
         if(fixedSize())
         {
-            CV_CheckEQ(m.dims, d, "Can't reallocate UMat with locked size (probably due to misused 'const' modifier)");
+            CV_CheckEQ(m.dims, d, "");
             for(int j = 0; j < d; ++j)
-                CV_CheckEQ(m.size[j], sizes[j], "Can't reallocate UMat with locked size (probably due to misused 'const' modifier)");
+                CV_CheckEQ(m.size[j], sizes[j], "");
         }
         m.create(d, sizes, mtype);
         return;

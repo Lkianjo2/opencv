@@ -791,7 +791,6 @@ int ChessBoardDetector::orderFoundConnectedQuads(std::vector<ChessBoardQuad*>& q
 
         for (int i = 0; i < 4; i++)
         {
-            CV_DbgAssert(q);
             ChessBoardQuad *neighbor = q->neighbors[i];
             switch(i)   // adjust col, row for this quad
             {           // start at top left, go clockwise
@@ -1272,7 +1271,6 @@ int ChessBoardDetector::cleanFoundConnectedQuads(std::vector<ChessBoardQuad*>& q
         for (int i = 0; i < quad_count; ++i)
         {
             ChessBoardQuad *q = quad_group[i];
-            CV_DbgAssert(q);
             for (int j = 0; j < 4; ++j)
             {
                 if (q->neighbors[j] == q0)
@@ -1330,7 +1328,6 @@ void ChessBoardDetector::findConnectedQuads(std::vector<ChessBoardQuad*>& out_gr
             stack.pop();
             for (int k = 0; k < 4; k++ )
             {
-                CV_DbgAssert(q);
                 ChessBoardQuad *neighbor = q->neighbors[k];
                 if (neighbor && neighbor->count > 0 && neighbor->group_idx < 0 )
                 {
@@ -1719,7 +1716,6 @@ void ChessBoardDetector::findQuadNeighbors()
                     int k = 0;
                     for (; k < 4; k++ )
                     {
-                        CV_DbgAssert(q);
                         if (!q->neighbors[k])
                         {
                             if (normL2Sqr<float>(closest_corner.pt - q->corners[k]->pt) < min_dist)
@@ -2094,7 +2090,6 @@ void drawChessboardCorners( InputOutputArray image, Size patternSize,
         return;
     Mat corners = _corners.getMat();
     const Point2f* corners_data = corners.ptr<Point2f>(0);
-    CV_DbgAssert(corners_data);
     int nelems = corners.checkVector(2, CV_32F, true);
     CV_Assert(nelems >= 0);
 

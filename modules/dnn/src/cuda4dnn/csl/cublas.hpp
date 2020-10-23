@@ -8,6 +8,7 @@
 #include "error.hpp"
 #include "stream.hpp"
 #include "pointer.hpp"
+#include "fp16.hpp"
 
 #include <opencv2/core.hpp>
 
@@ -51,30 +52,22 @@ namespace cv { namespace dnn { namespace cuda4dnn { namespace csl { namespace cu
         }
     }
 
-    /** non-copyable cuBLAS smart handle
+    /** noncopyable cuBLAS smart handle
      *
      * UniqueHandle is a smart non-sharable wrapper for cuBLAS handle which ensures that the handle
-     * is destroyed after use. The handle must always be associated with a non-default stream. The stream
-     * must be specified during construction.
-     *
-     * Refer to stream API for more information for the choice of forcing non-default streams.
+     * is destroyed after use. The handle can be associated with a CUDA stream by specifying the
+     * stream during construction. By default, the handle is associated with the default stream.
      */
     class UniqueHandle {
     public:
-        UniqueHandle() noexcept : handle{ nullptr } { }
+        UniqueHandle() { CUDA4DNN_CHECK_CUBLAS(cublasCreate(&handle)); }
         UniqueHandle(UniqueHandle&) = delete;
-        UniqueHandle(UniqueHandle&& other) noexcept {
-            stream = std::move(other.stream);
-            handle = other.handle;
+        UniqueHandle(UniqueHandle&& other) noexcept
+            : stream(std::move(other.stream)), handle{ other.handle } {
             other.handle = nullptr;
         }
 
-        /** creates a cuBLAS handle and associates it with the stream specified
-         *
-         * Exception Guarantee: Basic
-         */
         UniqueHandle(Stream strm) : stream(std::move(strm)) {
-            CV_Assert(stream);
             CUDA4DNN_CHECK_CUBLAS(cublasCreate(&handle));
             try {
                 CUDA4DNN_CHECK_CUBLAS(cublasSetStream(handle, stream.get()));
@@ -86,7 +79,7 @@ namespace cv { namespace dnn { namespace cuda4dnn { namespace csl { namespace cu
         }
 
         ~UniqueHandle() noexcept {
-            if (handle) {
+            if (handle != nullptr) {
                 /* cublasDestroy won't throw if a valid handle is passed */
                 CUDA4DNN_CHECK_CUBLAS(cublasDestroy(handle));
             }
@@ -94,24 +87,14 @@ namespace cv { namespace dnn { namespace cuda4dnn { namespace csl { namespace cu
 
         UniqueHandle& operator=(const UniqueHandle&) = delete;
         UniqueHandle& operator=(UniqueHandle&& other) noexcept {
-            CV_Assert(other);
-            if (&other != this) {
-                UniqueHandle(std::move(*this)); /* destroy current handle */
-                stream = std::move(other.stream);
-                handle = other.handle;
-                other.handle = nullptr;
-            }
+            stream = std::move(other.stream);
+            handle = other.handle;
+            other.handle = nullptr;
             return *this;
         }
 
-        /** returns the raw cuBLAS handle */
-        cublasHandle_t get() const noexcept {
-            CV_Assert(handle);
-            return handle;
-        }
-
-        /** returns true if the handle is valid */
-        explicit operator bool() const noexcept { return static_cast<bool>(handle); }
+        /** @brief returns the raw cuBLAS handle */
+        cublasHandle_t get() const noexcept { return handle; }
 
     private:
         Stream stream;
@@ -121,21 +104,17 @@ namespace cv { namespace dnn { namespace cuda4dnn { namespace csl { namespace cu
     /** @brief sharable cuBLAS smart handle
      *
      * Handle is a smart sharable wrapper for cuBLAS handle which ensures that the handle
-     * is destroyed after all references to the handle are destroyed. The handle must always
-     * be associated with a non-default stream. The stream must be specified during construction.
+     * is destroyed after all references to the handle are destroyed. The handle can be
+     * associated with a CUDA stream by specifying the stream during construction. By default,
+     * the handle is associated with the default stream.
      *
      * @note Moving a Handle object to another invalidates the former
      */
     class Handle {
     public:
-        Handle() = default;
+        Handle() : handle(std::make_shared<UniqueHandle>()) { }
         Handle(const Handle&) = default;
         Handle(Handle&&) = default;
-
-        /** creates a cuBLAS handle and associates it with the stream specified
-         *
-         * Exception Guarantee: Basic
-         */
         Handle(Stream strm) : handle(std::make_shared<UniqueHandle>(std::move(strm))) { }
 
         Handle& operator=(const Handle&) = default;
@@ -144,7 +123,6 @@ namespace cv { namespace dnn { namespace cuda4dnn { namespace csl { namespace cu
         /** returns true if the handle is valid */
         explicit operator bool() const noexcept { return static_cast<bool>(handle); }
 
-        /** returns the raw cuBLAS handle */
         cublasHandle_t get() const noexcept {
             CV_Assert(handle);
             return handle->get();

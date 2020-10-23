@@ -1,9 +1,6 @@
 Support Vector Machines for Non-Linearly Separable Data {#tutorial_non_linear_svms}
 =======================================================
 
-@prev_tutorial{tutorial_introduction_to_svm}
-@next_tutorial{tutorial_introduction_to_pca}
-
 Goal
 ----
 

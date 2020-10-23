@@ -7,9 +7,9 @@ namespace detail
 
     typedef short deriv_type;
 
-    struct ScharrDerivInvoker : ParallelLoopBody
+    struct SharrDerivInvoker : ParallelLoopBody
     {
-        ScharrDerivInvoker(const Mat& _src, const Mat& _dst)
+        SharrDerivInvoker(const Mat& _src, const Mat& _dst)
             : src(_src), dst(_dst)
         { }
 

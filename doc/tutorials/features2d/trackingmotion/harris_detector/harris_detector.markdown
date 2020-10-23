@@ -1,8 +1,6 @@
 Harris corner detector {#tutorial_harris_detector}
 ======================
 
-@next_tutorial{tutorial_good_features_to_track}
-
 Goal
 ----
 

@@ -1,8 +1,6 @@
 Introduction to Support Vector Machines {#tutorial_introduction_to_svm}
 =======================================
 
-@next_tutorial{tutorial_non_linear_svms}
-
 Goal
 ----
 

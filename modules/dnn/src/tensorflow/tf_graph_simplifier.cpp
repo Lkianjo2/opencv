@@ -31,10 +31,7 @@ public:
 
     virtual std::string getInputName(int idx) const CV_OVERRIDE
     {
-        // If operation produces several tensors, they are specified by index
-        // after ':' character. In example, "input:0".
-        std::string name = node->input(idx);
-        return name.substr(0, name.rfind(':'));
+        return node->input(idx);
     }
 
     virtual std::string getType() const CV_OVERRIDE
@@ -498,9 +495,8 @@ public:
     ResizeBilinearSubgraph()
     {
         int input = addNodeToMatch("");
-        int shapeSource = addNodeToMatch("");
 
-        int shape = addNodeToMatch("Shape", shapeSource);
+        int shape = addNodeToMatch("Shape", input);
         int stack = addNodeToMatch("Const");
         int stack_1 = addNodeToMatch("Const");
         int stack_2 = addNodeToMatch("Const");
@@ -508,7 +504,7 @@ public:
         int factorY = addNodeToMatch("Const");
         int mul = addNodeToMatch("Mul", strided_slice, factorY);
 
-        shape = addNodeToMatch("Shape", shapeSource);
+        shape = addNodeToMatch("Shape", input);
         stack = addNodeToMatch("Const");
         stack_1 = addNodeToMatch("Const");
         stack_2 = addNodeToMatch("Const");
@@ -520,51 +516,6 @@ public:
 
         addNodeToMatch("ResizeBilinear", input, pack);
         setFusedNode("ResizeBilinear", input, factorY, factorX);
-    }
-};
-
-// In case of resizing by factor.
-class ResizeBilinearSubgraphDown : public TFSubgraph
-{
-public:
-    ResizeBilinearSubgraphDown()
-    {
-        int input = addNodeToMatch("");
-        int shapeSource = addNodeToMatch("");
-
-        int shape = addNodeToMatch("Shape", shapeSource);
-        int stack = addNodeToMatch("Const");
-        int stack_1 = addNodeToMatch("Const");
-        int stack_2 = addNodeToMatch("Const");
-        int strided_slice = addNodeToMatch("StridedSlice", shape, stack, stack_1, stack_2);
-        int factorY = addNodeToMatch("Const");
-        int div = addNodeToMatch("RealDiv", addNodeToMatch("Cast", strided_slice), factorY);
-        int cast = addNodeToMatch("Cast", div);
-
-        shape = addNodeToMatch("Shape", shapeSource);
-        stack = addNodeToMatch("Const");
-        stack_1 = addNodeToMatch("Const");
-        stack_2 = addNodeToMatch("Const");
-        strided_slice = addNodeToMatch("StridedSlice", shape, stack, stack_1, stack_2);
-        int factorX = addNodeToMatch("Const");
-        int div_1 = addNodeToMatch("RealDiv", addNodeToMatch("Cast", strided_slice), factorX);
-        int cast_1 = addNodeToMatch("Cast", div_1);
-
-        int pack = addNodeToMatch("Pack", cast, cast_1);
-
-        addNodeToMatch("ResizeBilinear", input, pack);
-        setFusedNode("ResizeBilinear", input, factorY, factorX);
-    }
-
-    virtual void finalize(tensorflow::GraphDef&, tensorflow::NodeDef* fusedNode,
-                          std::vector<tensorflow::NodeDef*>& inputNodes) CV_OVERRIDE
-    {
-
-        for (int i = 1; i < 3; ++i)
-        {
-            tensorflow::TensorProto* factor = inputNodes[i]->mutable_attr()->at("value").mutable_tensor();
-            factor->set_double_val(0, 1.0 / factor->double_val(0));
-        }
     }
 };
 
@@ -728,21 +679,6 @@ private:
     bool negativeScales;
 };
 
-class ClipByValueSubgraph : public TFSubgraph
-{
-public:
-    ClipByValueSubgraph()
-    {
-        int input = addNodeToMatch("");
-        int maxValue = addNodeToMatch("Const");
-        int minimum = addNodeToMatch("Minimum", input, maxValue);
-        int minValue = addNodeToMatch("Const");
-        addNodeToMatch("Maximum", minimum, minValue);
-
-        setFusedNode("ClipByValue", input, minValue, maxValue);
-    }
-};
-
 void simplifySubgraphs(tensorflow::GraphDef& net)
 {
     std::vector<Ptr<Subgraph> > subgraphs;
@@ -766,8 +702,6 @@ void simplifySubgraphs(tensorflow::GraphDef& net)
     subgraphs.push_back(Ptr<Subgraph>(new PReLUSubgraph(true)));
     subgraphs.push_back(Ptr<Subgraph>(new PReLUSubgraph(false)));
     subgraphs.push_back(Ptr<Subgraph>(new FlattenProdSubgraph()));
-    subgraphs.push_back(Ptr<Subgraph>(new ResizeBilinearSubgraphDown()));
-    subgraphs.push_back(Ptr<Subgraph>(new ClipByValueSubgraph()));
 
     for (int i = 0; i < net.node_size(); ++i)
     {

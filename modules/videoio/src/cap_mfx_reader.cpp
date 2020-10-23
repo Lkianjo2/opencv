@@ -215,7 +215,7 @@ bool VideoCapture_IntelMFX::grabFrame()
         else if (res == MFX_WRN_DEVICE_BUSY)
         {
             DBG(cout << "Waiting for device" << endl);
-            sleep_ms(1000);
+            sleep(1);
             continue;
         }
         else if (res == MFX_WRN_VIDEO_PARAM_CHANGED)
